@@ -1,8 +1,6 @@
 package org.example;
 
 import java.util.*;
-import java.io.*;
-import java.math.*;
 
 /**
  * Auto-generated code below aims at helping you parse
@@ -28,52 +26,18 @@ class Player {
 
         System.err.println("Steps to run : " + depth);
 
+        Map<Integer, Map<Integer, Integer>> cumulatedHashesPerTurn = new HashMap<>();
 
-        List<int[][]> currentTurn = new ArrayList<>();
-        List<int[][]> nextTurn = new ArrayList<>();
-        int turnCount = 0;
+        int solution = computeSolution(toHash(initialState), 0, depth, cumulatedHashesPerTurn);
 
-        final List<Integer> solutions = new ArrayList<>();
-
-        currentTurn.add(initialState);
-
-        while(turnCount < depth && currentTurn.size() > 0) {
-            final var state = currentTurn.get(0);
-            currentTurn.remove(state);
-
-            List<int[][]> nextStates = getChildren(state);
-
-            if(nextStates.size() == 0) {
-                solutions.add(toHash(state));
-            }
-
-            for(int[][] future : nextStates) {
-                nextTurn.add(future);
-            }
-
-            if(currentTurn.size() == 0) {
-                currentTurn = nextTurn;
-                nextTurn = new ArrayList<>();
-
-                System.err.println("Turn end : " + turnCount);
-                turnCount++;
-            }
-        }
-
-        System.err.println("Current " + currentTurn.size());
-        System.err.println("next " + nextTurn.size());
-
-        for(int[][] remaining: currentTurn) {
-            solutions.add(toHash(remaining));
-        }
-
-        debugHashes(solutions);
-
-        System.out.println(computeSolution(solutions));
-        //System.out.println(1);
-
+        System.out.println(solution);
     }
 
+    /**
+     * Compute children states for a current turn's game state
+     * @param state game state
+     * @return A list containing the next turn states
+     */
     public static List<int[][]> getChildren(int[][] state) {
         List<int[][]> children = new ArrayList<>();
 
@@ -111,6 +75,13 @@ class Player {
         return children;
     }
 
+    /**
+     * Get adjacent dice positions
+     * @param col column index
+     * @param row row index
+     * @param grid game state
+     * @return a list containing a tile adjacent dices if they exist
+     */
     public static List<int[]> getAdjacentDice(int col, int row, int[][] grid) {
         List<int[]> dice = new ArrayList<>();
 
@@ -130,10 +101,19 @@ class Player {
         return dice;
     }
 
+    /**
+     * Indicates if a tile is a dice
+     * @param tile tile value
+     */
     public static boolean isDice(int tile) {
         return tile != 0;
     }
 
+    /**
+     * Determine all distinct dice combinations from a list of dice
+     * @param dice dice position list
+     * @param grid game state
+     */
     public static List<List<int[]>> getDiceCombinations(List<int[]> dice, int[][] grid) {
         List<List<int[]>> combinations = new ArrayList<>();
 
@@ -174,10 +154,18 @@ class Player {
         return combinations;
     }
 
+    /**
+     * Computes the number of distinct combinations of k elements from a collection of n
+     * @param k number of combination elements
+     * @param n number of elements in a pool
+     */
     public static int combinationNumber(int k, int n) {
         return factorial(n) / (factorial(k) * factorial(n - k));
     }
 
+    /**
+     * Computes the factorial of a given number
+     */
     public static int factorial(int number) {
         if(number == 0) {
             return 1;
@@ -186,6 +174,11 @@ class Player {
         return number * factorial(number - 1);
     }
 
+    /**
+     * Determines if a combination is valid based on if the sum of all dice is smaller than 6
+     * @param combination List of dice
+     * @param grid game state
+     */
     public static boolean combinationIsValid(List<int[]> combination, int[][] grid) {
         int sum = 0;
 
@@ -196,6 +189,14 @@ class Player {
         return sum <= 6;
     }
 
+    /**
+     * Create a new game state by putting a dice at a given position
+     * and absorbing dice listed in combination
+     * @param currentState game state
+     * @param x column for new dice position
+     * @param y row for new dice position
+     * @param combination dice combination to create a new dice
+     */
     public static int[][] createNewState(int[][] currentState, int x, int y, List<int[]> combination) {
         int[][] stateNew = copyGrid(currentState);
 
@@ -216,6 +217,10 @@ class Player {
         return stateNew;
     }
 
+    /**
+     * Print grid
+     * @param grid game state
+     */
     public static void debugGrid(int[][] grid) {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
@@ -225,13 +230,14 @@ class Player {
         }
     }
 
-    public static void debugHashes(List<Integer> hashes) {
-        System.err.printf("%d solutions found:", hashes.size());
-        for(var hash: hashes) {
-            System.err.println(hash);
-        }
-    }
-
+    /**
+     * Converts a game state into an integer hash.
+     * Hash is created as follows :
+     * 1 2 3
+     * 4 5 6 --> 123456789
+     * 7 8 9
+     * @param grid game state
+     */
     public static int toHash(int[][] grid) {
         int hash = 0;
 
@@ -246,18 +252,83 @@ class Player {
         return hash;
     }
 
-    public static final int MODULO = (int)Math.pow(2, 30);
+    /**
+     * Converts a hash into a game state grid
+     * @param hash integer hash
+     * @see Player#toHash(int[][])
+     */
+    public static int[][] fromHash(int hash) {
+        String literal = String.valueOf(hash);
 
-    public static int computeSolution(List<Integer> hashes) {
-        int sum = 0;
-
-        for(int hash: hashes) {
-            sum = (sum + hash) % MODULO;
+        if(literal.length() < 9) {
+            literal = "0".repeat(9 - literal.length()) + literal;
         }
 
-        return sum;
+        int[][] grid = new int[3][3];
+
+        for(int row = 0; row < 3; row++) {
+            for(int col = 0; col < 3; col++) {
+                grid[col][row] = Integer.parseInt(String.valueOf(literal.charAt(row * 3 + col)));
+            }
+        }
+
+        return grid;
     }
 
+    public static final int MODULO = (int)Math.pow(2, 30);
+
+    /**
+     * Compute recursively the cumulated hashes of all final game states for a maximum of maxTurn turns.
+     * This method is a depth-first algorithm which tries to compute game states and save in memory
+     * all cumulated hashes values for each game state for a given turn.
+     * @param hash current game state
+     * @param turn current turn
+     * @param maxTurn maximum turn to which the algorithm has to dig
+     * @param cumulatedHashesPerTurn Map containing cumulated hashes for each already encountered game states
+     * @return The cumulated hashes of all final game states
+     */
+    public static int computeSolution(int hash, int turn, int maxTurn, Map<Integer, Map<Integer, Integer>> cumulatedHashesPerTurn) {
+
+        if(!cumulatedHashesPerTurn.containsKey(turn)) {
+            cumulatedHashesPerTurn.put(turn, new HashMap<Integer, Integer>());
+        }
+
+        Map<Integer, Integer> cumulatedHashes = cumulatedHashesPerTurn.get(turn);
+        Integer cumulated = cumulatedHashes.get(hash);
+
+        if(cumulated == null) {
+            if(turn == maxTurn) {
+                cumulatedHashes.put(hash, hash);
+                return hash;
+            }
+
+            var children = getChildren(fromHash(hash));
+
+            if(children.isEmpty()) {
+                cumulatedHashes.put(hash, hash);
+                return hash;
+            }
+
+            cumulated = 0;
+            int futureHash;
+            for(var child: children) {
+                futureHash = computeSolution(toHash(child), turn + 1, maxTurn, cumulatedHashesPerTurn);
+                cumulated = (cumulated + futureHash) % MODULO;
+            }
+
+            cumulatedHashes.put(hash, cumulated);
+
+            return cumulated;
+        } else {
+            return cumulated;
+        }
+
+    }
+
+    /**
+     * Make a deep copy of a game state
+     * @param grid game state
+     */
     public static int[][] copyGrid(int[][] grid) {
         return Arrays.stream(grid)
                 .map(int[]::clone)
